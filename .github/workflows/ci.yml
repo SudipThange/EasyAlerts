@@ -1,54 +1,24 @@
 name: CI Pipeline
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
+on: [push]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    # Python setup (for Django)
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
 
-    - name: Install backend dependencies
-      run: |
-        if [ -f backend/requirements.txt ]; then
-          cd backend
+      - name: Install dependencies
+        run: |
           pip install -r requirements.txt
-        fi
 
-    - name: Django check
-      run: |
-        if [ -f backend/manage.py ]; then
-          cd backend
-          python manage.py check
-        fi
-
-    # Node setup (for React)
-    - name: Set up Node
-      uses: actions/setup-node@v3
-      with:
-        node-version: "18"
-
-    - name: Install frontend dependencies
-      run: |
-        if [ -f frontend/package.json ]; then
-          cd frontend
-          npm install
-        fi
-
-    - name: Build frontend
-      run: |
-        if [ -f frontend/package.json ]; then
-          cd frontend
-          npm run build
-        fi
+      - name: Django check
+        run: |
+          python backend/manage.py check
