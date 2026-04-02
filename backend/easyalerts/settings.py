@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'easyalerts',
     'user_profile.apps.UserProfileConfig',
+    'prediction',
 ]
 
 MIDDLEWARE = [
