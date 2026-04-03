@@ -4,62 +4,74 @@ _Last updated: 2026-04-02_
 
 ## Project Overview
 
-EasyAlerts is currently set up as a Django-based backend project with a placeholder frontend folder. The main completed work so far is the custom user management and authentication API, along with the initial prediction/data-ingestion foundation for fire or hazard alert data.
+EasyAlerts is currently a backend-first Django project focused on user authentication, profile management, prediction-data ingestion, and a local ML training workflow for fire or hazard alert use cases. The frontend folder exists locally, but there is still no tracked frontend application code in the repository.
+
+## New Changes Reflected In This Update
+
+- Added committed ML training code under `backend/prediction/ml/`.
+- Added committed ML model artifact at `backend/prediction/ml/model.pkl`.
+- Added MLflow tracking outputs under `backend/mlruns/` and tracking database usage in the training flow.
+- Added Django logging configuration with file output to `backend/logs/app.log`.
+- Added `backend/start_mlflow_ui.ps1` for local MLflow UI startup.
+- Expanded `backend/requirements.txt` to include ML, MLflow, and related backend dependencies.
+- Updated GitHub Actions CI to install dependencies from `backend/requirements.txt` and run Django checks from the `backend/` directory.
+- Removed `pywin32` from active installation in `backend/requirements.txt` for CI compatibility.
 
 ## What Has Been Done
 
-### 1. Project Initialization
+### 1. Project Setup
 
-- Initialized the Git repository and basic project structure.
+- Initialized the Git repository.
 - Added `.gitignore`.
-- Created separate `backend/` and `frontend/` directories.
-- Set up the Django project under `backend/easyalerts/`.
+- Created `backend/` and `frontend/` directories.
+- Set up the Django project in `backend/`.
 
-### 2. Backend Setup
+### 2. Backend Configuration
 
-- Created the Django project configuration and app wiring.
+- Configured Django 5 project settings and app wiring.
 - Added these installed apps:
   - `rest_framework`
   - `rest_framework_simplejwt.token_blacklist`
   - `corsheaders`
+  - `easyalerts`
   - `user_profile`
   - `prediction`
-- Configured custom user model with:
+- Configured a custom user model with:
   - email-based login
   - role support (`admin`, `user`)
-  - phone number validation
-  - automatic staff/admin synchronization
+  - phone number validation and normalization
+  - automatic admin and staff flag synchronization
 - Added JWT authentication using SimpleJWT.
-- Added database configuration for:
+- Added database support for:
   - SQL Server as the default backend
-  - SQLite fallback using `EASYALERTS_DB_BACKEND=sqlite`
+  - SQLite fallback via `EASYALERTS_DB_BACKEND=sqlite`
+- Added application logging to console and file output.
 
 ### 3. User Management API
 
-Implemented the `user_profile` app with:
+The `user_profile` app is implemented with:
 
-- Custom `UserProfile` model
-- Custom `UserProfileManager`
-- Registration serializer with:
+- custom `UserProfile` model and manager
+- registration serializer with:
   - email normalization
-  - Indian phone number normalization/validation
-  - duplicate checks
+  - Indian phone number normalization and validation
+  - duplicate phone checks
   - password confirmation
-  - password-strength validation
-- Login serializer with:
+  - password validation
+- login serializer with:
   - email/password authentication
   - JWT access and refresh token generation
-  - token expiry metadata in response
-- Logout serializer with refresh token blacklisting
-- Profile edit serializer with:
+  - dynamic token-expiry metadata in the response
+- logout serializer with refresh-token blacklisting
+- profile edit serializer with:
   - phone update support
   - optional password change
-  - forced token invalidation when password changes
-- Read-only user/profile serializer
+  - forced re-authentication support after password updates
+- read-only user/profile serializer
 
 ### 4. User API Endpoints
 
-These endpoints are currently available under `/users/`:
+The following endpoints are available under `/users/`:
 
 - `register/`
 - `login/`
@@ -70,75 +82,84 @@ These endpoints are currently available under `/users/`:
 - `profile/`
 - `list/`
 
-Implemented views for:
+Implemented views cover:
 
 - user registration
 - user login
 - user logout
-- authenticated profile view
-- authenticated profile edit
-- admin-only user listing with pagination
+- authenticated profile retrieval
+- authenticated profile editing
+- admin-only user listing with pagination validation
 
 ### 5. Prediction App Foundation
 
-The `prediction` app has been created and includes:
+The `prediction` app currently includes:
 
-- `RawData` model with fields:
+- `RawData` model with:
   - `timestamp`
   - `gas_level`
   - `temperature`
   - `pressure`
   - `smoke_level`
   - `alarm`
-- Initial migration for the prediction data model
-- Raw dataset at `backend/resources/data/raw_data.csv`
-- Django management command `load_data` to import CSV data into the database
+- initial migration for prediction data
+- dataset file at `backend/resources/data/raw_data.csv`
+- management command `load_data` to import the CSV into the database
 
 Current dataset status:
 
 - `raw_data.csv` is present
-- file contains 4001 lines total, including the header
+- file contains 4001 lines including the header
 
-### 6. ML Training Work
+### 6. ML Training And Experiment Tracking
 
-There is local ML pipeline work in progress under `backend/prediction/ml/train.py` that includes:
+Committed ML work now exists in `backend/prediction/ml/train.py` and includes:
 
-- loading prediction data from the database
-- preparing features/labels
-- train/test split
+- loading prediction data from the Django database
+- feature preparation and feature interaction generation
+- train/test split with stratification
 - XGBoost classifier training
-- evaluation with F1 and AUC
+- probability calibration with `CalibratedClassifierCV`
+- evaluation using F1 score, ROC AUC, classification report, and confusion matrix
 - feature importance logging
-- model saving with `joblib`
-- MLflow logging
+- model persistence with `joblib`
+- MLflow experiment logging
 
-Note:
+Related committed assets now include:
 
-- `backend/prediction/ml/` is currently an untracked local folder in the workspace, so this part appears to be started but not committed yet.
+- trained model artifact at `backend/prediction/ml/model.pkl`
+- MLflow run artifacts under `backend/mlruns/`
+- local MLflow startup helper script at `backend/start_mlflow_ui.ps1`
 
-### 7. Testing and CI
+### 7. CI And Testing
 
-- Added GitHub Actions CI workflow at `.github/workflows/ci.yml`
-- CI currently installs dependencies from `requirements.txt`
-- CI runs `python backend/manage.py check`
-- Added automated tests for `user_profile`
+- Added GitHub Actions workflow at `.github/workflows/ci.yml`
+- CI currently:
+  - checks out the repository
+  - sets up Python 3.11
+  - installs dependencies from `backend/requirements.txt`
+  - runs `python manage.py check` from the `backend/` directory
+- `backend/requirements.txt` now includes Django, REST, SQL Server, ML, MLflow, and training-related packages
+- `pywin32` is commented out to avoid Ubuntu CI install issues
+
+Automated tests currently exist for the `user_profile` app.
 
 Covered test areas:
 
-- registration normalization
+- registration email and phone normalization
 - duplicate phone handling
-- login token expiry response
+- login token-expiry response
 - logout token blacklisting
 - password-change token blacklisting
 - invalid pagination handling
-- admin role/staff sync
+- admin role and staff flag synchronization
 - admin-only access protection
 
 ## Verification Completed
 
 The following were verified locally on 2026-04-02 using SQLite:
 
-- `python manage.py check`
+- `python -B manage.py check`
 - `python manage.py test user_profile`
 
 Result:
@@ -146,46 +167,56 @@ Result:
 - Django system check passed
 - 8 `user_profile` tests passed
 
-## Commit History So Far
+## Recent Commit History
 
-1. `2026-04-01` - `Init Project`
-2. `2026-04-01` - `GitIngonre File Uploaded`
-3. `2026-04-01` - `Added backend and frontend Files`
-4. `2026-04-01` - `Added GitHub Actions CI`
-5. `2026-04-01` - `Added API changes and updated user_profile app`
+1. `2026-04-02` - `fix: removed pywin32 for CI compatibility`
+2. `2026-04-02` - `Updated Backend`
+3. `2026-04-02` - `Git-Actions Solved`
+4. `2026-04-02` - `User, Prediction feature is added.`
+5. `2026-04-02` - `New features added: user,prediction`
 6. `2026-04-01` - `Fixed CI - added requirements.txt`
-7. `2026-04-02` - `New features added: user,prediction`
+7. `2026-04-01` - `Added API changes and updated user_profile app`
+8. `2026-04-01` - `Added GitHub Actions CI`
+9. `2026-04-01` - `Added backend and frontend Files`
+10. `2026-04-01` - `GitIngonre File Uploaded`
 
 ## Current Project State
 
 ### Completed / Working
 
 - Django backend project structure
-- custom user model
-- JWT authentication flow
-- profile management APIs
-- admin user listing
+- custom user model and authentication flow
+- JWT login, refresh, verify, and logout flow
+- user profile view and edit APIs
+- admin-only user listing
 - prediction data model
-- CSV import command
-- user app automated tests
+- CSV import command for raw data
+- committed ML training pipeline
+- committed local trained model artifact
+- MLflow experiment logging setup
+- backend logging configuration
+- CI Django check workflow
+- `user_profile` automated tests
 
 ### In Progress / Partial
 
-- prediction model API endpoints are not implemented yet
-- `prediction/views.py` is still a placeholder
-- `prediction/tests.py` is still a placeholder
-- frontend does not currently contain application code
-- ML training pipeline exists locally but is not yet committed
+- prediction API endpoints are not implemented yet
+- `backend/prediction/views.py` is still a placeholder
+- `backend/prediction/tests.py` is still a placeholder
+- prediction routes are not yet exposed in the main URL configuration
+- frontend application code is not yet present in tracked files
+- CI currently runs Django checks only and does not run the test suite
 
-### Things to Improve Next
+### Things To Improve Next
 
-- connect CI and local commands to a clearly defined database mode
-- add prediction APIs for inference and alert generation
-- commit and validate the ML pipeline dependencies if the training flow will be used
+- add prediction serializers, views, URLs, and API endpoints
+- load and serve the trained model for inference
+- add prediction tests and end-to-end API coverage
+- decide whether large MLflow artifacts should remain committed to the repository
+- separate development-only ML dependencies from runtime backend requirements if needed
 - add frontend implementation
-- add documentation for setup, environment variables, and API usage
-- add tests for prediction and more end-to-end auth flows
+- document setup, environment variables, database selection, and ML workflow usage
 
 ## Summary
 
-The project already has a solid backend foundation, especially around user authentication and account management. The next major phase is to turn the prediction module into a working API/service and then build the frontend on top of the existing backend endpoints.
+The project now has a stronger backend foundation than the previous status file reflected. Authentication and profile management are in place, prediction data ingestion exists, and the ML training workflow is now committed with model and MLflow artifacts. The next major step is turning the prediction module into a usable API and deciding how the trained-model workflow should be exposed and maintained in the application.

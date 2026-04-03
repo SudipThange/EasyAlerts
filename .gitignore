@@ -1,3 +1,5 @@
 .venv/
+.env
+backend/.env
 backend/logs/
 *.log
