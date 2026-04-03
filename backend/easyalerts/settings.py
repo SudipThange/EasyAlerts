@@ -77,9 +77,9 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "easyalerts",
-    "user_profile.apps.UserProfileConfig",
-    "prediction",
-    "history",
+    "apps.user_profile.apps.UserProfileConfig",
+    "apps.prediction.apps.PredictionConfig",
+    "apps.history.apps.HistoryConfig",
 ]
 
 MIDDLEWARE = [
@@ -263,17 +263,17 @@ LOGGING = {
             "level": LOG_LEVEL,
             "propagate": False,
         },
-        "user_profile": {
+        "apps.user_profile": {
             "handlers": ["console", "file"],
             "level": LOG_LEVEL,
             "propagate": False,
         },
-        "prediction": {
+        "apps.prediction": {
             "handlers": ["console", "file"],
             "level": LOG_LEVEL,
             "propagate": False,
         },
-        "history": {
+        "apps.history": {
             "handlers": ["console", "file"],
             "level": LOG_LEVEL,
             "propagate": False,

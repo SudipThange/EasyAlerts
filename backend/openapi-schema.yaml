@@ -1,0 +1,751 @@
+openapi: 3.0.3
+info:
+  title: EasyAlerts API
+  version: 1.0.0
+  description: API documentation for EasyAlerts authentication, user management, and
+    history endpoints.
+paths:
+  /users/edit-profile/:
+    patch:
+      operationId: users_edit_profile_partial_update
+      summary: Update the authenticated user's profile
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserEdit'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserUpdateSuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+  /users/history/:
+    get:
+      operationId: users_history_list
+      summary: Get history for the authenticated user
+      tags:
+      - History
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListHistory'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryError'
+          description: ''
+    post:
+      operationId: users_history_create
+      summary: Create a history record from sensor readings
+      tags:
+      - History
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHistory'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateHistory'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateHistory'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryCreateSuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryError'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryError'
+          description: ''
+  /users/history/admin/:
+    get:
+      operationId: users_history_admin_list
+      summary: Get all history records for admin users
+      tags:
+      - History
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListHistory'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryError'
+          description: ''
+  /users/list/:
+    get:
+      operationId: users_list_retrieve
+      summary: List users for admin accounts
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Page number
+      - in: query
+        name: per_page
+        schema:
+          type: integer
+        description: Users per page (max 100)
+      tags:
+      - Users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListSuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+  /users/login/:
+    post:
+      operationId: users_login_create
+      summary: Login user and return JWT tokens
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoginSuccess'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+  /users/logout/:
+    post:
+      operationId: users_logout_create
+      summary: Logout user by blacklisting refresh token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogout'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserLogout'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserLogout'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLogoutSuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+  /users/profile/:
+    get:
+      operationId: users_profile_retrieve
+      summary: Get the authenticated user's profile
+      tags:
+      - Users
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileSuccess'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+  /users/register/:
+    post:
+      operationId: users_register_create
+      summary: Register a new user
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationSuccess'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: ''
+  /users/token/refresh/:
+    post:
+      operationId: users_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      summary: Refresh JWT access token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: Invalid refresh token.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: Unauthorized.
+  /users/token/verify/:
+    post:
+      operationId: users_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      summary: Verify JWT token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+        required: true
+      responses:
+        '200':
+          description: Token is valid.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: Invalid token.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+          description: Unauthorized.
+components:
+  schemas:
+    CreateHistory:
+      type: object
+      properties:
+        gas_level:
+          type: number
+          format: double
+        temperature:
+          type: number
+          format: double
+        pressure:
+          type: number
+          format: double
+        smoke_level:
+          type: number
+          format: double
+      required:
+      - gas_level
+      - pressure
+      - smoke_level
+      - temperature
+    HistoryCreateSuccess:
+      type: object
+      properties:
+        message:
+          type: string
+        history:
+          $ref: '#/components/schemas/ListHistory'
+      required:
+      - history
+      - message
+    HistoryError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors: {}
+    ListHistory:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        gas_level:
+          type: number
+          format: double
+        temperature:
+          type: number
+          format: double
+        pressure:
+          type: number
+          format: double
+        smoke_level:
+          type: number
+          format: double
+        prediction_label:
+          type: string
+          nullable: true
+          maxLength: 50
+        confidence_score:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - gas_level
+      - pressure
+      - smoke_level
+      - temperature
+      - timestamp
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - page
+      - per_page
+      - total
+      - total_pages
+    PatchedUserEdit:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          pattern: ^(?:\+91|91)?[6-9]\d{9}$
+          maxLength: 13
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          description: Leave blank if you do not want to change password
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+          description: Confirmation of new password
+    RoleEnum:
+      enum:
+      - admin
+      - user
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `user` - User
+    StandardErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        errors: {}
+        error:
+          type: string
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+      required:
+      - refresh
+    TokenRefreshResponse:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
+    TokenVerifyRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    UserListSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserView'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+      required:
+      - data
+      - message
+      - pagination
+      - success
+    UserLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    UserLoginSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        access:
+          type: string
+        refresh:
+          type: string
+        expires_in:
+          type: integer
+        user:
+          $ref: '#/components/schemas/UserView'
+      required:
+      - access
+      - expires_in
+      - message
+      - refresh
+      - success
+      - user
+    UserLogout:
+      type: object
+      properties:
+        refresh:
+          type: string
+          writeOnly: true
+          description: Refresh token to be invalidated
+        message:
+          type: string
+          readOnly: true
+      required:
+      - message
+      - refresh
+    UserLogoutSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+      - message
+      - success
+    UserProfileSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserView'
+      required:
+      - message
+      - success
+      - user
+    UserRegister:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone_number:
+          type: string
+          pattern: ^(?:\+91|91)?[6-9]\d{9}$
+          maxLength: 13
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirm:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - first_name
+      - last_name
+      - password
+      - password_confirm
+      - phone_number
+    UserRegistrationSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserView'
+      required:
+      - message
+      - success
+      - user
+    UserUpdateSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        force_reauthentication:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/UserView'
+      required:
+      - force_reauthentication
+      - message
+      - success
+      - user
+    UserView:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        phone_number:
+          type: string
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        modified_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - first_name
+      - full_name
+      - id
+      - is_active
+      - last_name
+      - modified_at
+      - phone_number
+      - role
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

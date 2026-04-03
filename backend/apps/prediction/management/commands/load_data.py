@@ -1,7 +1,9 @@
 import os
+
 import pandas as pd
 from django.core.management.base import BaseCommand
-from prediction.models import RawData
+
+from apps.prediction.models import RawData
 
 class Command(BaseCommand):
     help = "Load raw_data.csv into the database"

@@ -12,7 +12,7 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score, r
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 
-from prediction.models import RawData
+from apps.prediction.models import RawData
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]

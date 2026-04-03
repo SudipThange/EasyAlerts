@@ -34,7 +34,7 @@ class HistoryTests(TestCase):
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    @patch("history.views.predict")
+    @patch("apps.history.views.predict")
     def test_history_post_populates_prediction_fields_from_predict_module(self, mock_predict):
         mock_predict.return_value = {
             "alarm": 1,

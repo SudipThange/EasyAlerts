@@ -35,15 +35,22 @@ if (-not [System.IO.Path]::IsPathRooted($mlflowArtifactsDir)) {
 
 $trackingUri = "sqlite:///$($mlflowDbPath -replace '\\', '/')"
 $artifactRoot = "file:///$($mlflowArtifactsDir -replace '\\', '/')"
-$venvMlflow = Join-Path $baseDir "..\.venv\Scripts\mlflow.exe"
+$backendVenvPython = Join-Path $baseDir ".venv\Scripts\python.exe"
+$rootVenvPython = Join-Path $baseDir "..\.venv\Scripts\python.exe"
+
+if (Test-Path $backendVenvPython) {
+    $venvPython = $backendVenvPython
+} else {
+    $venvPython = $rootVenvPython
+}
 
 Write-Host "Starting MLflow UI"
 Write-Host "Tracking URI: $trackingUri"
 Write-Host "Artifact Root: $artifactRoot"
 Write-Host "Open: http://127.0.0.1:5000"
 
-if (Test-Path $venvMlflow) {
-    & $venvMlflow ui --backend-store-uri $trackingUri --default-artifact-root $artifactRoot
+if (Test-Path $venvPython) {
+    & $venvPython -m mlflow ui --backend-store-uri $trackingUri --default-artifact-root $artifactRoot
 } else {
-    mlflow ui --backend-store-uri $trackingUri --default-artifact-root $artifactRoot
+    python -m mlflow ui --backend-store-uri $trackingUri --default-artifact-root $artifactRoot
 }
