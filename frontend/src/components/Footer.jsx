@@ -2,15 +2,17 @@ import { Link } from 'react-router-dom';
 
 const Footer = () => {
   return (
-    <footer className="border-t border-amber-100/80 bg-white/75 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 lg:flex-row lg:items-end lg:justify-between">
+    <footer className="border-t border-info/10 bg-white/80 backdrop-blur-sm">
+      <div className="mx-auto flex w-full max-w-[92rem] flex-col gap-8 px-6 py-10 lg:flex-row lg:items-end lg:justify-between lg:px-8">
         <div className="max-w-xl">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400 shadow-[0_10px_30px_rgba(251,146,60,0.22)]">
-              <span className="text-xs font-bold text-white">EA</span>
-            </div>
+            <img
+              src="/easyalerts_logo_clean.png"
+              alt="EasyAlerts logo"
+              className="h-12 w-12 rounded-2xl object-contain shadow-[0_10px_30px_rgba(37,99,235,0.16)]"
+            />
             <div>
-              <p className="text-base font-semibold text-slate-900">EasyAlerts</p>
+              <p className="font-alert text-2xl uppercase tracking-[0.12em] leading-none text-slate-900">EasyAlerts</p>
               <p className="text-xs uppercase tracking-[0.26em] text-slate-400">Hazard detection platform</p>
             </div>
           </div>
@@ -32,10 +34,13 @@ const Footer = () => {
           <Link to="/history" className="transition-colors hover:text-slate-900">
             History
           </Link>
+          <Link to="/register" className="transition-colors hover:text-slate-900">
+            Register
+          </Link>
         </div>
       </div>
 
-      <div className="border-t border-amber-100/80 px-6 py-4 text-center text-xs uppercase tracking-[0.24em] text-slate-400">
+      <div className="border-t border-info/10 px-6 py-4 text-center text-xs uppercase tracking-[0.24em] text-slate-400">
         EasyAlerts 2026
       </div>
     </footer>

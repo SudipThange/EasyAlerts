@@ -19,15 +19,17 @@ const Navbar = () => {
     }`;
 
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-amber-100/80 bg-white/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <nav className="fixed left-0 right-0 top-0 z-50 border-b border-info/10 bg-white/85 backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-[92rem] items-center justify-between px-6 py-4 lg:px-8">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 via-orange-400 to-rose-400 shadow-[0_10px_30px_rgba(251,146,60,0.28)]">
-            <span className="text-xs font-bold text-white">EA</span>
-          </div>
+          <img
+            src="/easyalerts_logo_clean.png"
+            alt="EasyAlerts logo"
+            className="h-12 w-12 rounded-2xl object-contain shadow-[0_10px_30px_rgba(37,99,235,0.18)]"
+          />
           <div>
-            <span className="block text-base font-semibold text-slate-900">EasyAlerts</span>
-            <span className="block text-[11px] uppercase tracking-[0.28em] text-slate-400">Smart detection</span>
+            <span className="block font-alert text-2xl uppercase tracking-[0.12em] leading-none text-slate-900">EasyAlerts</span>
+            <span className="block text-[11px] uppercase tracking-[0.28em] text-slate-500">Smart detection</span>
           </div>
         </Link>
 
@@ -51,9 +53,15 @@ const Navbar = () => {
               </Link>
               <Link
                 to="/login"
-                className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700"
+                className={navLinkClass(location.pathname === '/login')}
               >
                 Login
+              </Link>
+              <Link
+                to="/register"
+                className="rounded-full bg-info px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Register
               </Link>
             </>
           ) : (
@@ -66,7 +74,7 @@ const Navbar = () => {
               </Link>
               <button
                 onClick={handleLogout}
-                className="text-sm text-slate-500 transition-colors hover:text-rose-500"
+                className="text-sm text-slate-500 transition-colors hover:text-danger"
               >
                 Logout
               </button>

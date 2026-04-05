@@ -4,11 +4,14 @@ import re
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.db import DatabaseError, IntegrityError
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.utils import get_md5_hash_password
 
 from .models import UserProfile
 
@@ -41,6 +44,25 @@ def blacklist_user_refresh_tokens(user):
     outstanding_tokens = OutstandingToken.objects.filter(user=user)
     for outstanding_token in outstanding_tokens:
         BlacklistedToken.objects.get_or_create(token=outstanding_token)
+
+
+def create_refresh_token_for_user(user):
+    try:
+        return RefreshToken.for_user(user)
+    except (IntegrityError, DatabaseError):
+        logger.exception(
+            "Falling back to stateless refresh token creation for user %s because "
+            "the outstanding token table could not be written",
+            getattr(user, "email", user.pk),
+        )
+
+        token = RefreshToken()
+        token[api_settings.USER_ID_CLAIM] = str(getattr(user, api_settings.USER_ID_FIELD))
+
+        if api_settings.CHECK_REVOKE_TOKEN:
+            token[api_settings.REVOKE_TOKEN_CLAIM] = get_md5_hash_password(user.password)
+
+        return token
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -234,7 +256,7 @@ class UserLoginSerializer(serializers.Serializer):
             logger.warning("Failed login attempt for user: %s", email)
             raise serializers.ValidationError({"password": "Incorrect password. Please try again"})
 
-        refresh = RefreshToken.for_user(user)
+        refresh = create_refresh_token_for_user(user)
         data["email"] = email
         data["access"] = str(refresh.access_token)
         data["refresh"] = str(refresh)

@@ -1,5 +1,13 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { buildApiUrl } from '../config/api';
+
+const getFirstErrorMessage = (errors) => {
+  if (!errors) return null;
+
+  const firstError = Object.values(errors).flat().find(Boolean);
+  return typeof firstError === 'string' ? firstError : null;
+};
 
 const DetectHazard = () => {
   const [form, setForm] = useState({
@@ -12,7 +20,29 @@ const DetectHazard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    if (value === '') {
+      setForm((currentForm) => ({ ...currentForm, [name]: value }));
+      setError('');
+      return;
+    }
+
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue) || numericValue < 0) {
+      return;
+    }
+
+    setForm((currentForm) => ({ ...currentForm, [name]: value }));
+    setError('');
+  };
+
+  const blockNegativeKeypress = (e) => {
+    if (e.key === '-' || e.key === 'Minus') {
+      e.preventDefault();
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +52,7 @@ const DetectHazard = () => {
     try {
       const token = localStorage.getItem('access_token');
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/users/history/`,
+        buildApiUrl('/users/history/'),
         {
           gas_level: Number(form.gas_level),
           temperature: Number(form.temperature),
@@ -33,7 +63,12 @@ const DetectHazard = () => {
       );
       setResult(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.detail || 'Detection failed. Please try again.');
+      setError(
+        getFirstErrorMessage(err.response?.data) ||
+          err.response?.data?.message ||
+          err.response?.data?.detail ||
+          'Detection failed. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -43,7 +78,7 @@ const DetectHazard = () => {
     <div className="min-h-screen pt-20">
       <div className="mx-auto max-w-2xl px-6 py-16">
         <div className="mb-10">
-          <h1 className="mb-2 text-3xl font-bold text-slate-900">Detect Hazard</h1>
+          <h1 className="mb-2 font-alert text-5xl uppercase tracking-[0.06em] text-slate-900">Detect Hazard</h1>
           <p className="text-sm text-slate-600">Enter sensor readings to run AI-powered hazard detection.</p>
         </div>
 
@@ -54,12 +89,14 @@ const DetectHazard = () => {
               <input
                 type="number"
                 step="any"
+                min="0"
                 name="gas_level"
                 value={form.gas_level}
                 onChange={handleChange}
+                onKeyDown={blockNegativeKeypress}
                 placeholder="e.g. 10.5"
                 required
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-amber-400"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-info"
               />
               <p className="mt-1.5 text-xs text-slate-500">Measured gas concentration value</p>
             </div>
@@ -70,12 +107,14 @@ const DetectHazard = () => {
                 <input
                   type="number"
                   step="any"
+                  min="0"
                   name="temperature"
                   value={form.temperature}
                   onChange={handleChange}
+                  onKeyDown={blockNegativeKeypress}
                   placeholder="e.g. 32.1"
                   required
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-amber-400"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-info"
                 />
               </div>
               <div>
@@ -83,12 +122,14 @@ const DetectHazard = () => {
                 <input
                   type="number"
                   step="any"
+                  min="0"
                   name="pressure"
                   value={form.pressure}
                   onChange={handleChange}
+                  onKeyDown={blockNegativeKeypress}
                   placeholder="e.g. 1012.3"
                   required
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-amber-400"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-info"
                 />
               </div>
             </div>
@@ -98,19 +139,21 @@ const DetectHazard = () => {
               <input
                 type="number"
                 step="any"
+                min="0"
                 name="smoke_level"
                 value={form.smoke_level}
                 onChange={handleChange}
+                onKeyDown={blockNegativeKeypress}
                 placeholder="e.g. 2.7"
                 required
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-amber-400"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900 outline-none transition-colors placeholder-slate-400 focus:border-info"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-info py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
             >
               {loading ? (
                 <>
@@ -126,19 +169,19 @@ const DetectHazard = () => {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
-            <p className="text-sm text-rose-600">{error}</p>
+          <div className="mb-6 rounded-2xl border border-danger/15 bg-danger/5 px-4 py-3">
+            <p className="text-sm text-danger">{error}</p>
           </div>
         )}
 
         {result && (
           <div className="rounded-[2rem] border border-white/70 bg-white/85 p-8 shadow-[0_20px_60px_rgba(148,163,184,0.18)] backdrop-blur-sm">
-            <h3 className="mb-5 text-base font-semibold text-slate-900">Detection Result</h3>
+            <h3 className="mb-5 font-alert text-3xl uppercase tracking-[0.06em] text-slate-900">Detection Result</h3>
             <div
               className={`mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${
                 result.history?.prediction_label === 'hazard'
-                  ? 'border-rose-200 bg-rose-50 text-rose-600'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  ? 'border-danger/15 bg-danger/5 text-danger'
+                  : 'border-safe/15 bg-safe/5 text-safe'
               }`}
             >
               {result.history?.prediction_label === 'hazard' ? 'Hazard Detected' : 'No Hazard Found'}
@@ -151,12 +194,12 @@ const DetectHazard = () => {
             {result.history && (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Prediction</p>
-                  <p className="mt-1 font-medium capitalize text-slate-900">{result.history.prediction_label}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-info">Prediction</p>
+                  <p className="mt-1 font-alert text-3xl uppercase tracking-[0.06em] text-slate-900">{result.history.prediction_label}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Recorded At</p>
-                  <p className="mt-1 font-medium text-slate-900">
+                  <p className="text-xs uppercase tracking-[0.2em] text-info">Recorded At</p>
+                  <p className="mt-1 font-mono text-sm text-slate-900">
                     {new Date(result.history.timestamp).toLocaleString('en-IN')}
                   </p>
                 </div>
@@ -165,14 +208,14 @@ const DetectHazard = () => {
 
             {result.history?.confidence_score != null && (
               <div className="mt-4 flex items-center gap-3">
-                <span className="text-xs text-slate-500">Confidence</span>
+                <span className="text-xs uppercase tracking-[0.18em] text-info">Confidence</span>
                 <div className="h-1.5 flex-1 rounded-full bg-slate-200">
                   <div
-                    className="h-1.5 rounded-full bg-amber-500 transition-all"
+                    className="h-1.5 rounded-full bg-info transition-all"
                     style={{ width: `${Math.max(0, Math.min(100, result.history.confidence_score))}%` }}
                   />
                 </div>
-                <span className="text-xs text-slate-600">{Math.round(result.history.confidence_score)}%</span>
+                <span className="font-mono text-xs text-slate-600">{Math.round(result.history.confidence_score)}%</span>
               </div>
             )}
           </div>

@@ -1,3 +1,6 @@
+from unittest.mock import patch
+
+from django.db import IntegrityError
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
@@ -77,6 +80,24 @@ class UserProfileFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['expires_in'], 3600)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+
+    def test_login_falls_back_when_outstanding_token_storage_breaks(self):
+        with patch(
+            'apps.user_profile.serializers.RefreshToken.for_user',
+            side_effect=IntegrityError('broken outstanding token foreign key'),
+        ):
+            response = self.client.post(
+                '/users/login/',
+                {
+                    'email': 'user@example.com',
+                    'password': 'StrongPass1@',
+                },
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, 200)
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
 

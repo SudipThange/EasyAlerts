@@ -34,6 +34,19 @@ class HistoryTests(TestCase):
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
+    def test_create_serializer_rejects_negative_sensor_values(self):
+        serializer = CreateHistorySerializer(
+            data={
+                "gas_level": -1,
+                "temperature": 32.1,
+                "pressure": 1012.3,
+                "smoke_level": 2.7,
+            }
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("gas_level", serializer.errors)
+
     @patch("apps.history.views.predict")
     def test_history_post_populates_prediction_fields_from_predict_module(self, mock_predict):
         mock_predict.return_value = {

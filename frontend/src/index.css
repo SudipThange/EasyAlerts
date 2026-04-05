@@ -1,25 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --ea-warning: 245 158 11;
+    --ea-safe: 5 150 105;
+    --ea-info: 37 99 235;
+  }
+
   html {
     scroll-behavior: smooth;
   }
 
   body {
-    @apply antialiased text-slate-900;
+    @apply font-body antialiased text-slate-900;
     background:
-      radial-gradient(circle at top left, rgba(245, 158, 11, 0.16), transparent 28%),
-      radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 24%),
-      linear-gradient(180deg, #fffdf7 0%, #f7f4ec 48%, #f3efe5 100%);
+      radial-gradient(circle at top left, rgb(var(--ea-warning) / 0.16), transparent 28%),
+      radial-gradient(circle at top right, rgb(var(--ea-info) / 0.12), transparent 24%),
+      radial-gradient(circle at 82% 72%, rgb(var(--ea-safe) / 0.09), transparent 24%),
+      linear-gradient(180deg, #fffdf8 0%, #f7f6f1 48%, #f2f4f8 100%);
+  }
+
+  #root {
+    min-height: 100vh;
   }
 
   * {
     @apply box-border;
   }
 
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
   ::selection {
-    @apply bg-amber-200 text-slate-900;
+    @apply bg-info/20 text-slate-900;
   }
 }
