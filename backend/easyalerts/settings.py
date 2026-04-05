@@ -15,6 +15,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 
@@ -46,22 +47,33 @@ ENV_FILE = PROJECT_ROOT / ".env"
 load_dotenv(ENV_FILE)
 
 LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-$51*8hpp6p+_x+^qnvzni)y9w_3@2)r$ua9(4xh(+3_lro$o58",
-)
+DEFAULT_SECRET_KEY = "django-insecure-$51*8hpp6p+_x+^qnvzni)y9w_3@2)r$ua9(4xh(+3_lro$o58"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", DEFAULT_SECRET_KEY)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_bool_env("DJANGO_DEBUG", True)
+IS_PRODUCTION = not DEBUG
 
-ALLOWED_HOSTS = get_list_env("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
+DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1"] if DEBUG else []
+ALLOWED_HOSTS = get_list_env("DJANGO_ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS)
+WHITENOISE_AVAILABLE = importlib.util.find_spec("whitenoise") is not None
+
+if IS_PRODUCTION and SECRET_KEY == DEFAULT_SECRET_KEY:
+    raise ImproperlyConfigured(
+        "Set DJANGO_SECRET_KEY to a unique production value before deploying."
+    )
+
+if IS_PRODUCTION and set(ALLOWED_HOSTS).issubset({"localhost", "127.0.0.1"}):
+    raise ImproperlyConfigured(
+        "Set DJANGO_ALLOWED_HOSTS to your deployment hostnames before deploying."
+    )
 
 
 # Application definition
@@ -84,7 +96,8 @@ INSTALLED_APPS = [
 ]
 
 if importlib.util.find_spec("django_crontab") is not None:
-    INSTALLED_APPS.append("django_crontab")
+    if get_bool_env("ENABLE_SYNC_AND_RETRAIN_CRON", False):
+        INSTALLED_APPS.append("django_crontab")
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -96,6 +109,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if WHITENOISE_AVAILABLE:
+    MIDDLEWARE.insert(2, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = "easyalerts.urls"
 
@@ -120,7 +136,7 @@ WSGI_APPLICATION = "easyalerts.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DB_BACKEND = os.getenv("EASYALERTS_DB_BACKEND", "mssql").strip().lower()
+DB_BACKEND = os.getenv("EASYALERTS_DB_BACKEND", "sqlite").strip().lower()
 
 if DB_BACKEND == "sqlite":
     sqlite_name = os.getenv("EASYALERTS_SQLITE_NAME", "db.sqlite3")
@@ -145,7 +161,7 @@ else:
         "default": {
             "ENGINE": "mssql",
             "NAME": os.getenv("EASYALERTS_DB_NAME", "easyalerts_db"),
-            "HOST": os.getenv("EASYALERTS_DB_HOST", "DESKTOP-58V8UBA\\SQLEXPRESS01"),
+            "HOST": os.getenv("EASYALERTS_DB_HOST", "localhost"),
             "PORT": os.getenv("EASYALERTS_DB_PORT", ""),
             "USER": os.getenv("EASYALERTS_DB_USER", ""),
             "PASSWORD": os.getenv("EASYALERTS_DB_PASSWORD", ""),
@@ -191,7 +207,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    if WHITENOISE_AVAILABLE
+    else "django.contrib.staticfiles.storage.StaticFilesStorage"
+)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -231,11 +253,34 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOW_ALL_ORIGINS = get_bool_env("DJANGO_CORS_ALLOW_ALL_ORIGINS", True)
+CORS_ALLOW_ALL_ORIGINS = get_bool_env("DJANGO_CORS_ALLOW_ALL_ORIGINS", DEBUG)
 CORS_ALLOWED_ORIGINS = get_list_env("DJANGO_CORS_ALLOWED_ORIGINS", [])
 CSRF_TRUSTED_ORIGINS = get_list_env("DJANGO_CSRF_TRUSTED_ORIGINS", [])
 
+if IS_PRODUCTION and CORS_ALLOW_ALL_ORIGINS:
+    raise ImproperlyConfigured(
+        "Set DJANGO_CORS_ALLOW_ALL_ORIGINS=False and configure "
+        "DJANGO_CORS_ALLOWED_ORIGINS before deploying."
+    )
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = get_bool_env("DJANGO_USE_X_FORWARDED_HOST", IS_PRODUCTION)
+SECURE_SSL_REDIRECT = get_bool_env("DJANGO_SECURE_SSL_REDIRECT", IS_PRODUCTION)
+SESSION_COOKIE_SECURE = get_bool_env("DJANGO_SESSION_COOKIE_SECURE", IS_PRODUCTION)
+CSRF_COOKIE_SECURE = get_bool_env("DJANGO_CSRF_COOKIE_SECURE", IS_PRODUCTION)
+SECURE_HSTS_SECONDS = get_int_env("DJANGO_SECURE_HSTS_SECONDS", 31536000 if IS_PRODUCTION else 0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = get_bool_env(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", IS_PRODUCTION
+)
+SECURE_HSTS_PRELOAD = get_bool_env("DJANGO_SECURE_HSTS_PRELOAD", IS_PRODUCTION)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_REFERRER_POLICY = os.getenv("DJANGO_SECURE_REFERRER_POLICY", "same-origin")
+X_FRAME_OPTIONS = os.getenv("DJANGO_X_FRAME_OPTIONS", "DENY")
+
 LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO")
+ENABLE_FILE_LOGGING = get_bool_env("DJANGO_ENABLE_FILE_LOGGING", not IS_PRODUCTION)
+LOG_HANDLERS = ["console", "file"] if ENABLE_FILE_LOGGING else ["console"]
 
 LOGGING = {
     "version": 1,
@@ -258,33 +303,36 @@ LOGGING = {
         },
     },
     "root": {
-        "handlers": ["console", "file"],
+        "handlers": LOG_HANDLERS,
         "level": LOG_LEVEL,
     },
     "loggers": {
         "django": {
-            "handlers": ["console", "file"],
+            "handlers": LOG_HANDLERS,
             "level": LOG_LEVEL,
             "propagate": False,
         },
         "apps.user_profile": {
-            "handlers": ["console", "file"],
+            "handlers": LOG_HANDLERS,
             "level": LOG_LEVEL,
             "propagate": False,
         },
         "apps.prediction": {
-            "handlers": ["console", "file"],
+            "handlers": LOG_HANDLERS,
             "level": LOG_LEVEL,
             "propagate": False,
         },
         "apps.history": {
-            "handlers": ["console", "file"],
+            "handlers": LOG_HANDLERS,
             "level": LOG_LEVEL,
             "propagate": False,
         },
     },
 }
 
-CRONJOBS = [
-    ("27 10 * * *", "django.core.management.call_command", ["sync_and_retrain"]),
-]
+SYNC_AND_RETRAIN_CRON = os.getenv("SYNC_AND_RETRAIN_CRON", "0 2 * * *")
+CRONJOBS = []
+if get_bool_env("ENABLE_SYNC_AND_RETRAIN_CRON", False):
+    CRONJOBS.append(
+        (SYNC_AND_RETRAIN_CRON, "django.core.management.call_command", ["sync_and_retrain"])
+    )

@@ -1,0 +1,1 @@
+web: gunicorn easyalerts.wsgi:application -c gunicorn.conf.py

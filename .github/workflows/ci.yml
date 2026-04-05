@@ -1,9 +1,11 @@
 name: CI Pipeline
 
-on: [push]
+on:
+  push:
+  pull_request:
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,12 +17,35 @@ jobs:
         with:
           python-version: 3.11
 
-      # Install dependencies
       - name: Install dependencies
         working-directory: backend
         run: pip install -r requirements.txt
 
-      # Run Django checks
       - name: Django check
         working-directory: backend
+        env:
+          EASYALERTS_DB_BACKEND: sqlite
+          DJANGO_DEBUG: "True"
         run: python manage.py check
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build

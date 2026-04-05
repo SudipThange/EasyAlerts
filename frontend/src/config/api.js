@@ -1,6 +1,6 @@
-const fallbackApiUrl = 'http://localhost:8000';
-
-const rawApiUrl = import.meta.env.VITE_API_URL || fallbackApiUrl;
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const fallbackApiUrl = import.meta.env.DEV ? 'http://localhost:8000' : window.location.origin;
+const rawApiUrl = configuredApiUrl || fallbackApiUrl;
 
 export const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
 
