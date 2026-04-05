@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import importlib.util
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -81,6 +82,9 @@ INSTALLED_APPS = [
     "apps.prediction.apps.PredictionConfig",
     "apps.history.apps.HistoryConfig",
 ]
+
+if importlib.util.find_spec("django_crontab") is not None:
+    INSTALLED_APPS.append("django_crontab")
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -280,3 +284,7 @@ LOGGING = {
         },
     },
 }
+
+CRONJOBS = [
+    ("27 10 * * *", "django.core.management.call_command", ["sync_and_retrain"]),
+]
