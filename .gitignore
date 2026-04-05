@@ -19,3 +19,4 @@ backend/logs/
 *.log
 coverage/
 htmlcov/
+backend/local_data.json

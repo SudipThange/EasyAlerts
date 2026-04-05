@@ -60,15 +60,105 @@ const parseConfidenceValue = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const escapeHtml = (value) =>
-  String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+const formatConfidence = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${Math.round(parsed)}%` : '-';
+};
 
-const buildReportMarkup = (records) => {
+const sanitizePdfText = (value) =>
+  String(value)
+    .replaceAll('\\', '\\\\')
+    .replaceAll('(', '\\(')
+    .replaceAll(')', '\\)')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const wrapPdfText = (value, maxLength = 88) => {
+  const normalized = sanitizePdfText(value);
+
+  if (!normalized) {
+    return ['-'];
+  }
+
+  if (normalized.length <= maxLength) {
+    return [normalized];
+  }
+
+  const words = normalized.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    if (!currentLine) {
+      currentLine = word;
+      return;
+    }
+
+    const nextLine = `${currentLine} ${word}`;
+
+    if (nextLine.length <= maxLength) {
+      currentLine = nextLine;
+      return;
+    }
+
+    lines.push(currentLine);
+    currentLine = word;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+};
+
+const buildPdfDocument = (pageStreams) => {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>',
+  ];
+  const pageObjectNumbers = [];
+
+  pageStreams.forEach((stream) => {
+    const pageObjectNumber = objects.length + 1;
+    const contentObjectNumber = objects.length + 2;
+
+    pageObjectNumbers.push(pageObjectNumber);
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`,
+    );
+    objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  });
+
+  objects[1] = `<< /Type /Pages /Count ${pageStreams.length} /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(' ')}] >>`;
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+};
+
+const buildReportPdf = (records) => {
   const generatedAt = new Date();
   const hazardCount = records.filter((record) => normalizeResult(record.prediction_label) === 'hazard').length;
   const safeCount = records.length - hazardCount;
@@ -77,239 +167,138 @@ const buildReportMarkup = (records) => {
         records.reduce((sum, record) => sum + (Number(record.confidence_score) || 0), 0) / records.length,
       )
     : 0;
+  const pageWidth = 595;
+  const leftMargin = 48;
+  const rightMargin = 48;
+  const topMargin = 794;
+  const bottomMargin = 52;
+  const contentRight = pageWidth - rightMargin;
+  const pages = [];
+  let currentPage = { commands: [], y: topMargin };
 
-  const rows = records
-    .map(
-      (record, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHtml(formatReportDateTime(record.timestamp))}</td>
-          <td>${escapeHtml(record.gas_level)}</td>
-          <td>${escapeHtml(record.temperature)}</td>
-          <td>${escapeHtml(record.pressure)}</td>
-          <td>${escapeHtml(record.smoke_level)}</td>
-          <td>${escapeHtml(normalizeResult(record.prediction_label) === 'hazard' ? 'Hazard' : 'Safe')}</td>
-          <td>${record.confidence_score != null ? `${Math.round(record.confidence_score)}%` : '-'}</td>
-        </tr>
-      `,
-    )
-    .join('');
+  const createPage = () => {
+    currentPage = { commands: [], y: topMargin };
+    pages.push(currentPage);
+  };
 
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EasyAlerts Detection History Report</title>
-    <style>
-      :root {
-        --ink: #0f172a;
-        --muted: #64748b;
-        --line: #dbe4f0;
-        --panel: #f8fbff;
-        --accent: #2563eb;
-        --danger: #dc2626;
-        --safe: #059669;
-      }
+  const ensureSpace = (requiredHeight = 16) => {
+    if (currentPage.y - requiredHeight < bottomMargin) {
+      createPage();
+    }
+  };
 
-      * {
-        box-sizing: border-box;
-      }
+  const addTextLines = ({ lines, x = leftMargin, font = 'F1', size = 12, lineHeight = 16 }) => {
+    ensureSpace(lines.length * lineHeight);
 
-      body {
-        margin: 0;
-        padding: 32px;
-        font-family: "IBM Plex Sans", Arial, sans-serif;
-        color: var(--ink);
-        background: linear-gradient(180deg, #fffcf7 0%, #f4f8ff 100%);
-      }
+    lines.forEach((line, index) => {
+      const y = currentPage.y - index * lineHeight;
+      currentPage.commands.push(`BT\n/${font} ${size} Tf\n1 0 0 1 ${x} ${y} Tm\n(${sanitizePdfText(line) || '-'}) Tj\nET`);
+    });
 
-      .report-shell {
-        max-width: 980px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.96);
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        padding: 32px;
-        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
-      }
+    currentPage.y -= lines.length * lineHeight;
+  };
 
-      .report-header {
-        display: flex;
-        justify-content: space-between;
-        gap: 24px;
-        align-items: flex-start;
-        margin-bottom: 24px;
-      }
+  const addWrappedText = ({ text, maxLength = 88, x = leftMargin, font = 'F1', size = 12, lineHeight = 16 }) => {
+    addTextLines({ lines: wrapPdfText(text, maxLength), x, font, size, lineHeight });
+  };
 
-      .eyebrow {
-        margin: 0 0 10px;
-        letter-spacing: 0.26em;
-        text-transform: uppercase;
-        font-size: 12px;
-        color: var(--accent);
-      }
+  const addGap = (size = 10) => {
+    ensureSpace(size);
+    currentPage.y -= size;
+  };
 
-      h1 {
-        margin: 0;
-        font-size: 40px;
-        line-height: 1;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
+  const addDivider = () => {
+    ensureSpace(12);
+    currentPage.commands.push(`0.75 w\n${leftMargin} ${currentPage.y} m\n${contentRight} ${currentPage.y} l\nS`);
+    currentPage.y -= 12;
+  };
 
-      .subtext {
-        margin: 12px 0 0;
-        max-width: 520px;
-        color: var(--muted);
-        line-height: 1.6;
-      }
+  createPage();
 
-      .stamp {
-        min-width: 220px;
-        padding: 18px 20px;
-        border-radius: 20px;
-        background: var(--panel);
-        border: 1px solid var(--line);
-      }
+  addTextLines({
+    lines: ['EasyAlerts Smart Detection'],
+    font: 'F2',
+    size: 11,
+    lineHeight: 14,
+  });
+  addTextLines({
+    lines: ['Detection History Report'],
+    font: 'F2',
+    size: 24,
+    lineHeight: 28,
+  });
+  addWrappedText({
+    text: 'Structured PDF export of the selected history records for hazard review, follow-up analysis, and audit sharing.',
+    maxLength: 84,
+    size: 11,
+    lineHeight: 15,
+  });
+  addGap(10);
+  addTextLines({
+    lines: [
+      `Generated: ${formatReportDateTime(generatedAt)}`,
+      `Selected rows: ${records.length}    Hazards: ${hazardCount}    Safe: ${safeCount}    Avg confidence: ${averageConfidence}%`,
+    ],
+    size: 11,
+    lineHeight: 15,
+  });
+  addGap(8);
+  addDivider();
+  addTextLines({
+    lines: ['Selected Records'],
+    font: 'F2',
+    size: 14,
+    lineHeight: 18,
+  });
+  addGap(4);
 
-      .stamp strong,
-      .summary-card strong {
-        display: block;
-        font-size: 12px;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin-bottom: 8px;
-      }
+  records.forEach((record, index) => {
+    const resultLabel = normalizeResult(record.prediction_label) === 'hazard' ? 'Hazard' : 'Safe';
+    const recordHeader = `${index + 1}. ${formatReportDateTime(record.timestamp)} | ${resultLabel} | Confidence ${formatConfidence(record.confidence_score)}`;
+    const sensorLine = `Gas: ${record.gas_level ?? '-'}   Temp: ${record.temperature ?? '-'}   Pressure: ${record.pressure ?? '-'}   Smoke: ${record.smoke_level ?? '-'}`;
+    const estimatedHeight = wrapPdfText(recordHeader, 76).length * 15 + wrapPdfText(sensorLine, 88).length * 13 + 18;
 
-      .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
-        margin: 24px 0 28px;
-      }
+    ensureSpace(estimatedHeight);
+    addWrappedText({
+      text: recordHeader,
+      maxLength: 76,
+      font: 'F2',
+      size: 12,
+      lineHeight: 15,
+    });
+    addWrappedText({
+      text: sensorLine,
+      maxLength: 88,
+      font: 'F3',
+      size: 10,
+      lineHeight: 13,
+    });
+    addGap(6);
+    addDivider();
+  });
 
-      .summary-card {
-        padding: 18px;
-        border-radius: 20px;
-        border: 1px solid var(--line);
-        background: var(--panel);
-      }
+  addGap(4);
+  addTextLines({
+    lines: ['Review Note'],
+    font: 'F2',
+    size: 12,
+    lineHeight: 16,
+  });
+  addWrappedText({
+    text: 'Review hazard-labelled rows first and compare their sensor patterns with safe readings before sharing or archiving this PDF.',
+    maxLength: 88,
+    size: 11,
+    lineHeight: 15,
+  });
 
-      .summary-card span {
-        font-size: 28px;
-        font-weight: 700;
-      }
+  const pageStreams = pages.map((page, index) =>
+    [
+      ...page.commands,
+      `BT\n/F1 10 Tf\n1 0 0 1 ${leftMargin} 28 Tm\n(Page ${index + 1} of ${pages.length}) Tj\nET`,
+    ].join('\n'),
+  );
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        overflow: hidden;
-        border-radius: 20px;
-      }
-
-      thead th {
-        background: #eef5ff;
-        color: var(--accent);
-        text-transform: uppercase;
-        letter-spacing: 0.18em;
-        font-size: 11px;
-      }
-
-      th,
-      td {
-        padding: 14px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--line);
-        font-size: 14px;
-      }
-
-      tbody tr:nth-child(even) {
-        background: #fbfdff;
-      }
-
-      .hazard {
-        color: var(--danger);
-        font-weight: 700;
-      }
-
-      .safe {
-        color: var(--safe);
-        font-weight: 700;
-      }
-
-      .note {
-        margin-top: 20px;
-        padding: 18px 20px;
-        border-radius: 18px;
-        border: 1px solid var(--line);
-        background: #fffef8;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="report-shell">
-      <section class="report-header">
-        <div>
-          <p class="eyebrow">EasyAlerts Smart Detection</p>
-          <h1>Detection Report</h1>
-          <p class="subtext">
-            Structured export of the selected history records for hazard review, follow-up analysis, and audit sharing.
-          </p>
-        </div>
-        <aside class="stamp">
-          <strong>Generated</strong>
-          <div>${escapeHtml(formatReportDateTime(generatedAt))}</div>
-        </aside>
-      </section>
-
-      <section class="summary-grid">
-        <article class="summary-card">
-          <strong>Selected Rows</strong>
-          <span>${records.length}</span>
-        </article>
-        <article class="summary-card">
-          <strong>Hazards</strong>
-          <span class="hazard">${hazardCount}</span>
-        </article>
-        <article class="summary-card">
-          <strong>Safe</strong>
-          <span class="safe">${safeCount}</span>
-        </article>
-        <article class="summary-card">
-          <strong>Avg Confidence</strong>
-          <span>${averageConfidence}%</span>
-        </article>
-      </section>
-
-      <section>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Recorded At</th>
-              <th>Gas</th>
-              <th>Temp</th>
-              <th>Pressure</th>
-              <th>Smoke</th>
-              <th>Result</th>
-              <th>Confidence</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </section>
-
-      <section class="note">
-        This report was generated from the selected history rows inside EasyAlerts. Review hazard-labelled rows first and compare
-        their sensor patterns against normal safe readings before sharing or archiving the document.
-      </section>
-    </main>
-  </body>
-</html>`;
+  return buildPdfDocument(pageStreams);
 };
 
 const History = () => {
@@ -393,7 +382,7 @@ const History = () => {
   const currentPageKeys = paginatedHistory.map((item, index) => getHistoryRowKey(item, pageStart + index));
   const allCurrentPageSelected =
     currentPageKeys.length > 0 && currentPageKeys.every((key) => selectedRows.includes(key));
-  const selectedHistoryRows = history.filter((item, index) =>
+  const selectedHistoryRows = sortedHistory.filter((item, index) =>
     selectedRows.includes(getHistoryRowKey(item, index)),
   );
 
@@ -456,14 +445,13 @@ const History = () => {
       return;
     }
 
-    const reportMarkup = buildReportMarkup(selectedHistoryRows);
-    const blob = new Blob([reportMarkup], { type: 'text/html;charset=utf-8' });
+    const blob = buildReportPdf(selectedHistoryRows);
     const fileUrl = URL.createObjectURL(blob);
     const downloadLink = document.createElement('a');
     const timestamp = new Date().toISOString().replaceAll(':', '-');
 
     downloadLink.href = fileUrl;
-    downloadLink.download = `easyalerts-history-report-${timestamp}.html`;
+    downloadLink.download = `easyalerts-history-report-${timestamp}.pdf`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
@@ -611,7 +599,7 @@ const History = () => {
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Report Builder</p>
                         <p className="mt-1 text-sm text-slate-200">
-                          Select the rows you want in the exported report, then download a structured document.
+                          Select the rows you want in the exported report, then download a PDF document.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
@@ -624,7 +612,7 @@ const History = () => {
                           disabled={selectedHistoryRows.length === 0}
                           className="rounded-full bg-warning px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
                         >
-                          Download selected report
+                          Download selected PDF
                         </button>
                       </div>
                     </div>
