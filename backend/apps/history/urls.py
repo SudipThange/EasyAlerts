@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import HistoryView, AdminHistoryView
+from .views import AdminHistoryView, HistoryView
 
 urlpatterns = [
     path('', HistoryView.as_view(), name='user-history'),

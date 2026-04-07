@@ -29,9 +29,9 @@ const featureCards = [
 ];
 
 const stats = [
-  { label: 'Sensor checks', value: '500+' },
-  { label: 'Average confidence', value: '87%' },
-  { label: 'Alerts delivered', value: '12K+' },
+  { label: 'Sensor checks', value: '4' },
+  { label: 'Average confidence', value: '95%' },
+  { label: 'Trained data', value: '4000' },
 ];
 
 const steps = [
@@ -39,21 +39,21 @@ const steps = [
     id: '01',
     title: 'Create Your Account',
     description:
-      'Sign in once, connect your monitoring flow, and keep your alert workspace ready for daily use.',
+      'Create an account or log in to access detection tools, save readings, and manage your alert history.',
     accent: 'border-info/20 bg-info/10 text-info',
   },
   {
     id: '02',
     title: 'Enter Sensor Readings',
     description:
-      'Provide gas level, temperature, pressure, and smoke values so the model can evaluate the current risk.',
+      'Enter gas, smoke, temperature, and pressure values so the model can analyze the current environment in real time.',
     accent: 'border-warning/20 bg-warning/10 text-warning',
   },
   {
     id: '03',
     title: 'Scroll Results and Act',
     description:
-      'Review the model summary, confidence, and follow-up alerts without leaving the same experience.',
+      'Review the hazard result, confidence score, and next action, then save the outcome to your history.',
     accent: 'border-safe/20 bg-safe/10 text-safe',
   },
 ];
@@ -187,8 +187,7 @@ const Home = () => {
             </h2>
           </div>
           <p className="max-w-2xl text-base leading-7 text-slate-600">
-            Instead of sending people to a separate screen, the landing page now hints that the guidance
-            continues below and then reveals it in-place.
+            Follow a simple three-step flow: create your account, enter the four sensor readings, and review the prediction instantly on the same page.
           </p>
         </div>
 
